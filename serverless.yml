@@ -37,6 +37,7 @@ functions:
   success: ${file(success/function.yml)}
   fail: ${file(fail/function.yml)}
   manual-approval: ${file(manual-approval/function.yml)}
+  merge-parallel: ${file(merge-parallel/function.yml)}
 
 stepFunctions: ${file(stepfunctions.yml)}
 

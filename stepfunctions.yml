@@ -7,24 +7,26 @@ stateMachines:
       States:
         RunChecks:
           Type: Parallel
-          Next: ChecksPass
+          Next: MergeRunChecks
           Branches:
             - StartAt: CreditCheck
               States:
                 CreditCheck:
                   Type: Task
-                  Resource:
-                    Fn::GetAtt: [credit-check, Arn]
+                  Resource: !GetAtt credit-check.Arn
                   ResultPath: $.checks.credit
                   End: true
             - StartAt: AgeCheck
               States:
                 AgeCheck:
                   Type: Task
-                  Resource:
-                    Fn::GetAtt: [age-check, Arn]
+                  Resource: !GetAtt age-check.Arn
                   ResultPath: $.checks.age
                   End: true
+        MergeRunChecks:
+          Type: Task
+          Next: ChecksPass
+          Resource: !GetAtt merge-parallel.Arn
         ChecksPass:
           Type: Choice
           Choices:
@@ -39,8 +41,10 @@ stateMachines:
           Type: Task
           Resource: arn:aws:states:::lambda:invoke.waitForTaskToken
           Parameters:
-            FunctionName:
-              Fn::GetAtt: [manual-approval, Arn]
+            FunctionName: !GetAtt manual-approval.Arn
+            Payload:
+              data.$: $
+              token.$: $$.Task.Token
           ResultPath: $.checks.approved
           Next: CheckApproval
         CheckApproval:
@@ -52,11 +56,11 @@ stateMachines:
           Default: CheckFail
         CheckSuccess:
           Type: Task
-          Resource:
-            Fn::GetAtt: [success, Arn]
+          Resource: !GetAtt success.Arn
+          ResultPath: null
           End: true
         CheckFail:
           Type: Task
-          Resource:
-            Fn::GetAtt: [fail, Arn]
+          Resource: !GetAtt fail.Arn
+          ResultPath: null
           End: True
