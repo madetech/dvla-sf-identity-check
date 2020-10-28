@@ -1,0 +1,62 @@
+stateMachines:
+  checks:
+    name: run-checks
+    definition:
+      Comment: Runs checks before we can issue a driving license
+      StartAt: RunChecks
+      States:
+        RunChecks:
+          Type: Parallel
+          Next: ChecksPass
+          Branches:
+            - StartAt: CreditCheck
+              States:
+                CreditCheck:
+                  Type: Task
+                  Resource:
+                    Fn::GetAtt: [credit-check, Arn]
+                  ResultPath: $.checks.credit
+                  End: true
+            - StartAt: AgeCheck
+              States:
+                AgeCheck:
+                  Type: Task
+                  Resource:
+                    Fn::GetAtt: [age-check, Arn]
+                  ResultPath: $.checks.age
+                  End: true
+        ChecksPass:
+          Type: Choice
+          Choices:
+            - And:
+                - Variable: $.checks.credit
+                  BooleanEquals: true
+                - Variable: $.checks.age
+                  BooleanEquals: true
+              Next: CheckSuccess
+          Default: WaitForManualApproval
+        WaitForManualApproval:
+          Type: Task
+          Resource: arn:aws:states:::lambda:invoke.waitForTaskToken
+          Parameters:
+            FunctionName:
+              Fn::GetAtt: [manual-approval, Arn]
+          ResultPath: $.checks.approved
+          Next: CheckApproval
+        CheckApproval:
+          Type: Choice
+          Choices:
+            - Variable: $.checks.approved
+              BooleanEquals: true
+              Next: CheckSuccess
+          Default: CheckFail
+        CheckSuccess:
+          Type: Task
+          Resource:
+            Fn::GetAtt: [success, Arn]
+          End: true
+        CheckFail:
+          Type: Task
+          Resource:
+            Fn::GetAtt: [fail, Arn]
+          End: True
